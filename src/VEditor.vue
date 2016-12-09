@@ -1,36 +1,81 @@
 <template>
     <div class="v-editor" :style="{width: width, height: height}">
         <div class="v-editor-toolbar">
-            <ul class="v-editor-btn-group">
+            <ul class="v-editor-btn-group v-editor-tool">
                 <li class="v-editor-btn" @click="bold">
                     <a class="v-editor-icon" href="javascript:void(0)" title="加粗">B</a>
+                </li>
+                <li class="v-editor-btn" @click="italic">
+                    <a class="v-editor-icon" href="javascript:void(0)" title="斜体">I</a>
+                </li>
+            </ul>
+            <ul class="v-editor-btn-group v-editor-mode">
+                <li class="v-editor-btn" @click="preview">
+                    <a class="v-editor-icon" href="javascript:void(0)" title="预览">O</a>
                 </li>
             </ul>
         </div>
         <div class="v-editor-field" contenteditable="true" ref="editor"
             :class="{'v-editor-empty': !!placeholder}"
             :placeholder="placeholder"
-            :value="text"
+            v-show="!codeMode"
             @input="updateValue($event.target.innerHTML)">
+            <!-- <p>dgfdfd<b>aaaaaaaaaaaaaadffffffff</b></p> -->
         </div>
+        <textarea class="v-editor-code-field"
+            :value="code"
+            v-show="codeMode"
+            @input="codeToText($event.target.value)">
+        </textarea>
     </div>
 </template>
 
 <script>
 import util from './utils/util'
+import Range from './utils/range'
+import command from './utils/command'
 
 export default {
-    props: ['width', 'height', 'placeholder'],
+    props: ['width', 'height', 'placeholder', 'toolsbar'],
     data() {
+        console.log(this.toolsbar);
+
         return {
-            text: ''
+            code: '',
+            codeMode: false,
+            selection: window.getSelection(),
+            menu: []
         }
     },
     methods: {
         bold() {
-            const selection = window.getSelection()
-            
-            this.text = this.$refs.editor.innerHTML = util.wrap(this.$refs.editor.innerHTML, selection, ['<b>', '</b>'])
+            if (this.selection.rangeCount) {
+                const range = new Range(this.selection)
+
+                if (!util.hasParents(range.getRangeHtml(), this.$refs.editor)) return
+
+                // util.wrap(this.selection, 'b')
+
+                command.exec('bold')
+
+                this.code = this.$refs.editor.innerHTML
+            }
+        },
+        italic() {
+            if (this.selection.rangeCount) {
+                const range = new Range(this.selection)
+
+                if (!util.hasParents(range.getRangeHtml(), this.$refs.editor)) return
+
+                // util.wrap(this.selection, 'b')
+
+                command.exec('italic')
+
+                this.code = this.$refs.editor.innerHTML
+            }
+        },
+        preview() {
+            this.codeMode = !this.codeMode
         },
         updateValue(value) {
             if (value.length === 0) {
@@ -38,12 +83,16 @@ export default {
             } else {
                 this.$refs.editor.classList.remove('v-editor-empty')
             }
-            this.text = value
+
+            this.code = value
+        },
+        codeToText(value) {
+            this.$refs.editor.innerHTML = this.code = value
         }
     },
     watch: {
         text() {
-            this.$emit('input', this.text)
+            this.$emit('input', this.code)
         }
     }
 }
@@ -96,12 +145,22 @@ $toolbar-border-color: #f2f2f2;
         @extend %clearfix;
 
         .v-editor-btn-group {
-            float: left;
             height: 100%;
             border-right: 1px solid $toolbar-border-color;
+
+            @extend %clearfix;
+        }
+
+        .v-editor-tool {
+            float: left;
+        }
+
+        .v-editor-mode {
+            float: right;
         }
 
         .v-editor-btn {
+            float: left;
             width: 30px;
             height: 30px;
             text-align: center;
@@ -110,8 +169,10 @@ $toolbar-border-color: #f2f2f2;
         }
 
         .v-editor-icon {
+            display: block;
             text-decoration: none;
             color: inherit;
+            user-select: none;
         }
     }
 
@@ -119,6 +180,15 @@ $toolbar-border-color: #f2f2f2;
         height: 100%;
         padding: 10px;
         outline: none;
+    }
+
+    .v-editor-code-field {
+        width: 100%;
+        height: 100%;
+        padding: 10px;
+        border: 0;
+        outline: none;
+        resize: none;
     }
 }
 
